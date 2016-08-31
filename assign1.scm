@@ -215,4 +215,36 @@
   )
 
 ;(inspect (halve 30))
-(inspect (egypt/ 1960 56))
+;(inspect (egypt/ 1960 56))
+
+(define (mystery numTerms augend fnNumerator fnDenominator)
+  (define (mysteryIter store n)
+    (if (= n 0)
+      (+ augend (/ (fnNumerator n) store))
+      (mysteryIter (+ (fnDenominator n) (/ (fnNumerator n) store)) (- n 1)))
+    )
+  (mysteryIter (real (fnDenominator numTerms)) (- numTerms 1))
+)
+;(inspect (mystery 1000000 2 (lambda (n) 1) (lambda (n) n)))
+
+(define (ramanujan numIters)
+  (define (ramanujanRec n)
+    (if (< n numIters)
+      (sqrt (+ (+ 6 n) (* (+ 2 n) (ramanujanRec (+ n 1)))))
+      0
+      )
+    )
+    (ramanujanRec 0)
+  )
+(inspect (ramanujan 10))
+
+(define (iramanujan numIters)
+  (define (iramanujanIter n store)
+    (if (< n 0)
+      store
+      (iramanujanIter (- n 1) (sqrt (+ (+ 6 n) (* (+ 2 n) store))))
+      )
+    )
+  (iramanujanIter (- numIters 1) 0)
+  )
+(inspect (iramanujan 10))
