@@ -21,28 +21,42 @@
             #f
         )
     )
-    ;(inspect (and (= (/ 1 1) 0) (= (% a 0) 1)))
-    ;(inspect (my-and (= (/ 1 0) 1) (= (% a 0) 1)))
 
- (define (min5 a b c d e)
-  (cond
-    ((> a b) (min5 b a c d e))
-    ((> a c) (min5 c b a d e))
-    ((> a d) (min5 d b c a e))
-    ((> a e) (min5 e b c d a))
-    (else a))
+(define (run1)
+  (println "(my-and (= (/ 1 1) 0) (= (/ 1 0) 0))) would behave differently because in a regular \"and\" operation,
+  the second boolean expression isn't evaluated if the first one is false, but in \"my-and\", both boolean expressions
+  are evaluated in all cases.")
   )
-;(inspect (min5 5 4 3 2 1))
+
+;(run1)
+
+(define (min5 a b c d e)
+  (if (= a b c d e)
+    a
+    (if (< b a)
+      (min5 b e b c d)
+      (min5 a e a c d)
+      )
+    )
+  )
+
+(define (run2)
+  (inspect (min5 5 4 3 2 1))
+  (inspect (min5 2 3 1 4 5))
+  )
+
+;(run2)
 
 (define PI 3.14159265358979323846)
 
 (define (cym val)
-  (string+ (intToHex (calcCyanVal val)) (intToHex (calcYellowVal val)) (intToHex (calcMagentaVal val)))
-
+  
   (define (calcColorVal a b c x)
     (int (* a 
             (+ (cos (* b x)) 
-               c))))
+               c)))
+    )
+
     (define (calcCyanVal x)
     (calcColorVal 255 (* PI -0.005) 0 x)
     )
@@ -82,15 +96,24 @@
   
     (padResult (intToHexRec x ""))
     )
+
+    (string+ "#" (intToHex (calcCyanVal val)) (intToHex (calcYellowVal val)) (intToHex (calcMagentaVal val)))
   )
 
-(define test 100)
-;(inspect (calcCyanVal test))
-;(inspect (calcYellowVal test))
-;(inspect (calcMagentaVal test))
-;(inspect (cym test))
+(define (run3)
+  (inspect (cym 100))
+  (inspect (cym 1))
+  )
+
+;(run3)
 
 (define (root5 val)
+  (define TOLERANCE 1.0E-6)
+
+  (define (percentChange prev next)
+    (abs (/ (- prev next) next))
+    )
+
   (define (nextGuess x)
     (* 0.2 
        (+ (* 4 x) 
@@ -99,7 +122,8 @@
 
   (define (root5Rec prev)
     (define next (nextGuess prev))
-    (if (< (abs (/ (- prev next) next)) 1.0E-6)
+
+    (if (< (percentChange prev next) TOLERANCE)
       next
       (root5Rec next)
       )
@@ -107,7 +131,11 @@
   (root5Rec 1)
   )
 
-;(inspect (root5 25.755))
+(define (run4)
+  (inspect (root5 32))
+  (inspect (root5 64))
+  )
+;(run4)
 
 (define (bico row col)
   (if (or (= col 0) (= col row))
@@ -116,7 +144,11 @@
     )
   )
 
-;(inspect (bico 4 2))
+(define (run5)
+  (inspect (bico 0 0))
+  (inspect (bico 10 5))
+  )
+;(run5)
 
 (define (curry f a) 
   (lambda (b) 
@@ -124,7 +156,11 @@
       (lambda (d) 
         (f a b c d)))))
 
-;(inspect ((((curry (lambda (w x y z) (+ w x y z)) 1) 1) 1) 1))
+(define (run6)
+  (inspect ((((curry (lambda (a b c d) (* a b c d)) 2) 2) 2) 2))
+  (inspect ((((curry (lambda (a b c d) a) 2) 3) 4) 5))
+  )
+;(run6)
 
 (define (zorp i f)
   (define (calcZorp i1 i2 i3)
@@ -146,7 +182,10 @@
     )
   )
 
-;(inspect (zorp 10 (lambda (n) (+ (^ n 3) (^ n 2) n))))
+(define (run7)
+  (inspect (zorp 10 (lambda (n) (+ (^ n 3) (^ n 2) n))))
+  )
+;(run7)
 
 (define (egypt/ divisor dividend)
   (define (egyptIterDouble a b)
@@ -173,49 +212,22 @@
   )
 
 (define (halve num)
-  ;Only called on one digit at a time
-  (define (isEven n)
+  (define (halveIter current prev remaining numDoubles)
     (cond
-      ((= n 0) #t)
-      ((= n 1) #f)
-      (else (isEven (- n 2)))
+      ((= current remaining) (+ numDoubles prev))
+      ((> (double current) remaining) (halveIter 1 0 (- remaining current) (+ numDoubles prev)))
+      (else (halveIter (double current) current remaining numDoubles))
       )
     )
-  (define (stringNum n) 
-    (string+ "0" (string n))
-    )
-  (define (halveIter remaining result)
-    (cond
-      ((= (length remaining) 1) (int result))
-      (else
-         (define first (int (car remaining)))
-         (define second (int (cadr remaining)))
-         (define nextRemaining (cdr remaining))
-         (define nextDigitCheck
-           (cond
-             ((< second 2) 0)
-             ((< second 4) 1)
-             ((< second 6) 2)
-             ((< second 8) 3)
-             (else 4)
-             )
-           )
-         (define nextDigit
-           (if (isEven first)
-             nextDigitCheck
-             (+ nextDigitCheck 5)
-             )
-           )
-         (halveIter nextRemaining (string+ result nextDigit))
-        )
-      )
-    )
-    
-  (halveIter (stringNum num) "")
+  (halveIter 1 0 num 0)
   )
 
-;(inspect (halve 30))
-;(inspect (egypt/ 1960 56))
+(define (run8)
+  (inspect (egypt/ 1960 56))
+  (inspect (egypt/ 2000 20))
+  )
+(run8)
+
 
 (define (mystery numTerms augend fnNumerator fnDenominator)
   (define (mysteryIter store n)
@@ -225,26 +237,45 @@
     )
   (mysteryIter (real (fnDenominator numTerms)) (- numTerms 1))
 )
-;(inspect (mystery 1000000 2 (lambda (n) 1) (lambda (n) n)))
+
+(define (run9)
+  (inspect (mystery 9 2 (lambda (n) 1) (lambda (n) n)))
+  )
+;(run9)
+
 
 (define (ramanujan numIters)
   (define (ramanujanRec n)
-    (if (< n numIters)
-      (sqrt (+ (+ 6 n) (* (+ 2 n) (ramanujanRec (+ n 1)))))
+    (if (<= n numIters)
+      (sqrt 
+        (+ 
+          (+ 6 n) 
+          (* (+ 2 n) 
+             (ramanujanRec (+ n 1)))))
       0
       )
     )
     (ramanujanRec 0)
   )
-(inspect (ramanujan 10))
 
 (define (iramanujan numIters)
   (define (iramanujanIter n store)
     (if (< n 0)
       store
-      (iramanujanIter (- n 1) (sqrt (+ (+ 6 n) (* (+ 2 n) store))))
+      (iramanujanIter (- n 1) 
+                      (sqrt 
+                        (+ 
+                          (+ 6 n) 
+                          (* (+ 2 n) store))))
       )
     )
-  (iramanujanIter (- numIters 1) 0)
+  (iramanujanIter numIters 0)
   )
-(inspect (iramanujan 10))
+
+(define (run10)
+  (inspect (ramanujan 1))
+  (inspect (iramanujan 1))
+  (inspect (ramanujan 100))
+  (inspect (iramanujan 100))
+  )
+;(run10)
