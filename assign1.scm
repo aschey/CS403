@@ -12,16 +12,6 @@
     )
   )
 
-
-(define x 50)
-  (define a 5)
-    (define (my-and a b)
-        (if (true? a)
-            b
-            #f
-        )
-    )
-
 (define (run1)
   (println "(my-and (= (/ 1 1) 0) (= (/ 1 0) 0))) would behave differently because in a regular \"and\" operation,
   the second boolean expression isn't evaluated if the first one is false, but in \"my-and\", both boolean expressions
@@ -30,79 +20,97 @@
 
 ;(run1)
 
+; Keep the current min stored in the first variable
+; Cycle the rest of them, overwriting either a or b depending on which is smaller
+; All values have been checked when they are all the same
+;(define (min5 a b c d e)
+;  (if (= a b c d e)
+;    a
+;    (if (< b a)
+;      (min5 b e b c d)
+;      (min5 a e a c d)
+;      )
+;    )
+;  )
+
 (define (min5 a b c d e)
-  (if (= a b c d e)
+  (inspect (ppTable this))
+  (if (eq? b +)
     a
     (if (< b a)
-      (min5 b e b c d)
-      (min5 a e a c d)
+      (min5 b e + c d)
+      (min5 a e + c d)
       )
     )
   )
+
 
 (define (run2)
   (inspect (min5 5 4 3 2 1))
   (inspect (min5 2 3 1 4 5))
   )
 
-;(run2)
+(run2)
 
 (define PI 3.14159265358979323846)
 
 (define (cym val)
   
-  (define (calcColorVal a b c x)
+  (define (calcColorVal trigFunc a b c x)
     (int (* a 
-            (+ (cos (* b x)) 
+            (+ (trigFunc (* b x)) 
                c)))
     )
 
     (define (calcCyanVal x)
-    (calcColorVal 255 (* PI -0.005) 0 x)
+    (calcColorVal cos 255 (* PI -0.005) 0 x)
     )
   
   (define (calcYellowVal x)
-    (calcColorVal 127.5 (* PI 0.02) 1 x)
+    (calcColorVal (lambda (x) (- (sin x))) 255 (* PI 0.01) 1 x)
     )
   
   (define (calcMagentaVal x)
-    (calcColorVal 127.5 (* PI 0.015) 1 x)
+    (calcColorVal cos 127.5 (* PI 0.015) 1 x)
     )
   
   (define (intToHex x)
     (define hexLetters (array "A" "B" "C" "D" "E" "F"))
     (define (getHexValue intValue)
       (if (> intValue 9)
+        ; Get the corresponding hex letter
         (getElement hexLetters (- intValue 10))
         (string intValue)
         )
       )
-    (define (intToHexRec y result)
-      (define current (% y 16))
-      (define remaining (/ y 16))
+    (define (intToHexIter y result power)
+      (define current (/ y (^ 16 power)))
+      (define remaining (% y (^ 16 power)))
       (define nextValue (getHexValue current))
       (define nextResult (string+ result nextValue))
-      (if (= remaining 0)
+      (if (= power 0)
         nextResult
-        (intToHexRec remaining nextResult)
+        (intToHexIter remaining nextResult (- power 1))
         )
       )
     (define (padResult result)
+      ; Zero-pad if the result is smaller than 2 characters
       (if (< (length result) 2)
         (string+ "0" result)
         result
         )
       )
   
-    (padResult (intToHexRec x ""))
+    (padResult (intToHexIter x "" 1))
     )
-
     (string+ "#" (intToHex (calcCyanVal val)) (intToHex (calcYellowVal val)) (intToHex (calcMagentaVal val)))
   )
 
 (define (run3)
   (inspect (cym 100))
   (inspect (cym 1))
+  (inspect (cym 0))
+  (inspect (cym 50))
   )
 
 ;(run3)
@@ -118,29 +126,33 @@
     (* 0.2 
        (+ (* 4 x) 
           (/ val
-             (expt x 4)))))
+             (expt x 4))))
+    )
 
   (define (root5Rec prev)
     (define next (nextGuess prev))
-
+    ; Stop when the new guess is within 1.0E-6 percent of the previous guess
     (if (< (percentChange prev next) TOLERANCE)
       next
       (root5Rec next)
       )
     )
-  (root5Rec 1)
+  (root5Rec 1.0)
   )
 
 (define (run4)
   (inspect (root5 32))
   (inspect (root5 64))
+  (inspect (root5 589e-12))
   )
 ;(run4)
 
 (define (bico row col)
-  (if (or (= col 0) (= col row))
-    1
-    (+ (bico (- row 1) (- col 1)) (bico (- row 1) col))
+  (cond
+    ((> col row) "Error: row too big")
+    ((or (= col 0) (= col row)) 1)
+    ; Add the number directly above the current number and the number above and to the left
+    (else (+ (bico (- row 1) (- col 1)) (bico (- row 1) col)))
     )
   )
 
@@ -183,7 +195,7 @@
   )
 
 (define (run7)
-  (inspect (zorp 10 (lambda (n) (+ (^ n 3) (^ n 2) n))))
+  (inspect (zorp 0 (lambda (n) (+ (^ n 3) (^ n 2) n))))
   )
 ;(run7)
 
@@ -214,7 +226,10 @@
 (define (halve num)
   (define (halveIter current prev remaining numDoubles)
     (cond
+      ; Add the remaining doubles
       ((= current remaining) (+ numDoubles prev))
+      ; Once doubling the number makes it greater than the remaining value, start over,
+      ; keeping track of how many doubles we've done so far
       ((> (double current) remaining) (halveIter 1 0 (- remaining current) (+ numDoubles prev)))
       (else (halveIter (double current) current remaining numDoubles))
       )
@@ -226,12 +241,13 @@
   (inspect (egypt/ 1960 56))
   (inspect (egypt/ 2000 20))
   )
-(run8)
+;(run8)
 
 
 (define (mystery numTerms augend fnNumerator fnDenominator)
   (define (mysteryIter store n)
     (if (= n 0)
+      ; Add the augend once we reach the end
       (+ augend (/ (fnNumerator n) store))
       (mysteryIter (+ (fnDenominator n) (/ (fnNumerator n) store)) (- n 1)))
     )
@@ -239,7 +255,12 @@
 )
 
 (define (run9)
-  (inspect (mystery 9 2 (lambda (n) 1) (lambda (n) n)))
+  ; 13 is the minimum number of iterations needed to get the number to converge
+  (inspect (mystery 13 1 (lambda (n) 1) (lambda (n) 
+                                         (if (= (% n 3) 1)
+                                           (+ (/ n 3) n)
+                                           1
+                                           ))))
   )
 ;(run9)
 
@@ -273,9 +294,10 @@
   )
 
 (define (run10)
-  (inspect (ramanujan 1))
-  (inspect (iramanujan 1))
-  (inspect (ramanujan 100))
-  (inspect (iramanujan 100))
+  ; 33 Is the minimum number of iterations needed to get the number to converge
+  (inspect (ramanujan 33))
+  (inspect (iramanujan 33))
   )
 ;(run10)
+
+(println "assignment 1 loaded!")
