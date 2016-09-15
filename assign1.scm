@@ -20,27 +20,16 @@
 
 ;(run1)
 
-; Keep the current min stored in the first variable
-; Cycle the rest of them, overwriting either a or b depending on which is smaller
-; All values have been checked when they are all the same
-;(define (min5 a b c d e)
-;  (if (= a b c d e)
-;    a
-;    (if (< b a)
-;      (min5 b e b c d)
-;      (min5 a e a c d)
-;      )
-;    )
-;  )
-
+; Keep the current min stored in the first variable.
+; Cycle the rest of them so that the next variable to check against is in b,
+; overwriting either a or b depending on which is smaller.
+; Once the '+' reaches the b slot, all values have been checked. 
+; (+ was chosen randomly because it is a one-character non-number)
+; 
 (define (min5 a b c d e)
-  (inspect (ppTable this))
   (if (eq? b +)
     a
-    (if (< b a)
-      (min5 b e + c d)
-      (min5 a e + c d)
-      )
+    (min5 (if (< b a) b a) e + c d)
     )
   )
 
@@ -48,9 +37,12 @@
 (define (run2)
   (inspect (min5 5 4 3 2 1))
   (inspect (min5 2 3 1 4 5))
+  (inspect (min5 1 2 3 4 5))
+  (inspect (min5 2 2 2 2 1))
+  (inspect (min5 1 1 1 1 1))
   )
 
-(run2)
+;(run2)
 
 (define PI 3.14159265358979323846)
 

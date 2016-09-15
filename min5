@@ -1,0 +1,6 @@
+(define (min5 a b c d e)
+  (if (eq? b +)
+    a
+    (min5 (if (< b a) b a) e + c d)
+    )
+  )
