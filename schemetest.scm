@@ -9,6 +9,6 @@
   ((lambda (a g) ((lambda (b) (+ (* a a) (* (g a) a) (* (g b) b))) (* a a))) (+ x 1) (lambda (c) (* c c)))
   )
 
-(inspect (f 5))
-(inspect (ff 5))
+(display (f 5)) (newline)
+(display (ff 5))
 
