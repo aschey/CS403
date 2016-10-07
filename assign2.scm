@@ -54,86 +54,166 @@
   )
 ;(run2)
 
-(define (Node val next)
-  (define (setNext nextVal)
-    (Node val (Node nextVal nil))
+(define (Stack) (_Stack (list)))
+
+(define (_Stack store) this)
+
+(define (storeEmpty stack)
+  (= (length (stack 'store)) 0)
+  )
+
+(define (push stack val)
+  (_Stack (cons val (stack 'store)))
+  )
+
+(define (pop stack)
+  (if (storeEmpty stack)
+    nil
+   (_Stack (cdr (stack 'store)))
+   )
+  )
+
+(define (speek stack)
+  (if (storeEmpty stack)
+    nil
+    (car (stack 'store))
     )
   )
 
-(define (_LinkedList head tail)
-  (define (addToBack val)
-    (if (eq? tail nil)
-      (define newTail ((head 'setNext) val))
-      (define newTail ((tail 'setNext) val))
-      )
-    (_LinkedList head newTail)
-    )
-  this
+(define (ssize stack)
+  (length (stack 'store))
   )
 
-(define (LinkedList head)
-  (_LinkedList head nil)
-  )
-
-
-(define (_Stack store)
-  (define (push val)
-    (_Stack (cons val store))
-    )
-  (define (pop)
-    (_Stack (cdr store))
-    )
-  (define (speek)
-    (car store)
-    )
-  (define (ssize)
-    (length store)
-    )
-  this
-  )
-
-(define (Stack)
-  (_Stack (list))
-  )
-
-(define (_Queue s)
-  (define store s)
+(define (Queue) (_Queue (Stack) (Stack)))
   
-  (define (enqueue val)
-    )
+(define (_Queue inbox outbox) this)
 
-  (define (dequeue)
-    )
-
-  (define (qpeek)
-    (car (store))
-    )
-
-  (define (qsize)
-    (length store)
-    )
-  this
+(define (outboxEmpty queue)
+  (= (ssize (queue 'outbox)) 0)
   )
 
-(define (Queue)
-  (_Queue (list))
+(define (inboxEmpty queue)
+  (= (ssize (queue 'inbox)) 0)
+  )
+
+(define (enqueue queue val)
+  (_Queue (push (queue 'inbox) val) (queue 'outbox))
+  )
+
+(define (makeOutbox in out)
+  (cond 
+    ((> (ssize in) 0)
+     (define nextVal (speek in))
+     (makeOutbox (pop in) (push out nextVal))
+     )
+    (else
+      (_Queue in out)
+      )
+    )
+  )
+
+(define (dequeue queue)
+  (cond 
+    ((outboxEmpty queue)
+     (if (inboxEmpty queue)
+       nil
+       (dequeue (makeOutbox (queue 'inbox) (queue 'outbox)))
+       )
+     )
+    (else (_Queue (queue 'inbox) (pop (queue 'outbox))))
+    )
+  )
+
+(define (qpeek queue)
+  (cond
+    ((outboxEmpty queue) 
+     (if (inboxEmpty queue)
+       nil
+       (qpeek (makeOutbox (queue 'inbox) (queue 'outbox)))
+       )
+     )
+    (else (speek (queue 'outbox)))
+    )
   )
 
 (define (run3)
   (define s (Stack))
-  (define s2 ((s 'push) 3))
-  (inspect (s2 'store))
-  (define s3 ((s2 'push) 4))
-  (inspect ((s3 'speek)))
-  (define s4 ((s3 'pop)))
-  (inspect ((s4 'speek)))
+  (define s2 (push s 3))
+  (inspect (speek s2))
+  (define s3 (push s2 4))
+  (inspect (speek s3))
+  (define s4 (pop s3))
+  (inspect (speek s4))
+  (inspect (ssize s4))
+  (define s5 (pop s4))
+  (inspect (speek s5))
   )
+
 (define (run3test)
-  (define n1 (Node 1 nil))
-  (define l1 (LinkedList n1))
-  (define l2 ((l1 'addToBack) 2))
-  (inspect (l2 'tail))
+  ;(define n1 (Node 1 nil))
+  ;(define l1 (LinkedList n1))
+  ;(define l2 ((l1 'addToBack) 2))
+  ;(inspect (l2 'tail))
+  (define q (Queue))
+  (define q2 (enqueue q 1))
+  ;(inspect ((q2 'outbox) 'store))
+  (inspect (qpeek q2))
+  (define q3 (enqueue q2 2))
+  (define q4 (dequeue q3))
+  (inspect (qpeek q4))
+  (define q5 (dequeue q4))
+  (inspect (qpeek q5))
  ) 
 
 ;(run3)
-(run3test)
+;(run3test)
+
+(define (no-locals code)
+  (define def (car code))
+  (define signature (cadr code))
+
+  (define (construct sig body params)
+    (cons (list 'lambda sig body) params)
+    )
+  (define (any? search ref)
+    (cond
+      ((null? search) #f)
+      ((member? (car search) ref) #t)
+      (else (any? (cdr search) ref))
+      )
+    )
+
+  (define (no-locals-iter remaining sig body params)
+    (cond
+      ((null? remaining)
+       (construct sig body params)
+       )
+       (else
+         (define current (car remaining))
+         (cond
+           ((eq? (car current) 'define) 
+            (define varName (cadr current))
+            (define defBody (caddr current))
+            (if (any? sig defBody)
+              (construct sig (no-locals-iter (cdr remaining) (list varName) body (list defBody)) params) 
+              (no-locals-iter (cdr remaining) (cons varName sig) body (cons defBody params))
+              )
+            )
+            (else
+              (no-locals-iter (cdr remaining) sig (append current body) params)
+              )
+            )
+         )
+       )
+    )
+   (define funcBody (no-locals-iter (cddr code) (list) (list) (list)))
+   (list def signature funcBody)
+  )
+
+(define (run4)
+  (inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (define y (+ x x)) (+ x y)))))
+  (inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (+ x x)))))
+  (inspect (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j)))))
+  )
+
+(run4)
