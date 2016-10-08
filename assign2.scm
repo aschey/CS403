@@ -54,22 +54,22 @@
   )
 ;(run2)
 
-(define (Stack) (_Stack (list)))
+(define (Stack) (_Stack (list) 0))
 
-(define (_Stack store) this)
+(define (_Stack store size) this)
 
 (define (storeEmpty stack)
   (= (length (stack 'store)) 0)
   )
 
 (define (push stack val)
-  (_Stack (cons val (stack 'store)))
+  (_Stack (cons val (stack 'store)) (+ (stack 'size) 1))
   )
 
 (define (pop stack)
   (if (storeEmpty stack)
     nil
-   (_Stack (cdr (stack 'store)))
+   (_Stack (cdr (stack 'store)) (- (stack 'size) 1))
    )
   )
 
@@ -81,7 +81,7 @@
   )
 
 (define (ssize stack)
-  (length (stack 'store))
+  (stack 'size)
   )
 
 (define (Queue) (_Queue (Stack) (Stack)))
@@ -136,37 +136,46 @@
     )
   )
 
+(define (qsize queue)
+  (+ (ssize (queue 'inbox)) (ssize (queue 'outbox)))
+  )
+
 (define (run3)
   (define s (Stack))
+  (inspect (ssize s))
   (define s2 (push s 3))
   (inspect (speek s2))
+  (inspect (ssize s2))
   (define s3 (push s2 4))
   (inspect (speek s3))
+  (inspect (ssize s3))
   (define s4 (pop s3))
   (inspect (speek s4))
   (inspect (ssize s4))
   (define s5 (pop s4))
   (inspect (speek s5))
+  (inspect (ssize s5))
   )
 
 (define (run3test)
-  ;(define n1 (Node 1 nil))
-  ;(define l1 (LinkedList n1))
-  ;(define l2 ((l1 'addToBack) 2))
-  ;(inspect (l2 'tail))
   (define q (Queue))
+  (inspect (qsize q))
   (define q2 (enqueue q 1))
-  ;(inspect ((q2 'outbox) 'store))
   (inspect (qpeek q2))
+  (inspect (qsize q2))
   (define q3 (enqueue q2 2))
+  (inspect (qsize q3))
   (define q4 (dequeue q3))
   (inspect (qpeek q4))
-  (define q5 (dequeue q4))
+  (inspect (qsize q4))
+  (define q5 (enqueue q4 3))
+  (inspect (qsize q5))
+  (define q6 (dequeue q4))
   (inspect (qpeek q5))
  ) 
 
 ;(run3)
-;(run3test)
+(run3test)
 
 (define (no-locals code)
   (define def (car code))
@@ -216,4 +225,4 @@
   (inspect (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j)))))
   )
 
-(run4)
+;(run4)
