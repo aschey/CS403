@@ -1,6 +1,8 @@
 (define (author)
   (println "AUTHOR: Austin Schey aeschey@crimson.ua.edu")
   )
+
+; Problem 1
 (define (iterate # $var vals $)
   (define f (append (list 'lambda (list $var)) $))
   (define func (eval f #))
@@ -22,6 +24,10 @@
            (inspect (* i i i )))
 )
 ;(run1)
+
+; End problem 1
+
+; Problem 2
 
 (define (peval f @)
   (define (callFunc remaining params)
@@ -53,6 +59,10 @@
   ;(inspect (peval f 1 2 .))
   )
 ;(run2)
+
+; End problem 2
+
+; Problem 3
 
 (define (Stack) (_Stack (list) 0))
 
@@ -175,7 +185,11 @@
  ) 
 
 ;(run3)
-(run3test)
+;(run3test)
+
+; End problem 3
+
+; Problem 4
 
 (define (no-locals code)
   (define def (car code))
@@ -226,3 +240,262 @@
   )
 
 ;(run4)
+
+; End problem 4
+
+; Problem 5
+
+(define (pred churchNum)
+
+  (define (makePair first)
+    (lambda (second) 
+      (lambda (firstOrSecond) 
+        (if (eq? firstOrSecond #t)
+          first
+          second
+          )
+        )
+      )
+    )
+
+  (define (getFirst pair)
+    (pair #t)
+    )
+
+  (define (getSecond pair)
+    (pair #f)
+    )
+
+  (lambda (next) 
+    (lambda (first)
+      (define predFirst ((makePair #t) first))
+      (define predNext 
+        (lambda (pair) 
+          (if (getFirst pair)
+            ((makePair #f) first)
+            ((makePair #f) (next (getSecond pair)))
+            )
+          )
+        )
+      (define finalPair ((churchNum predNext) predFirst))
+      ;(inspect finalPair)
+      (getSecond finalPair)
+      )
+    )
+  )
+
+(define (run5)
+  (define (testFunc x) (+ x 1))
+  (define zero (lambda (f) (lambda (x) x)))
+  (define one (lambda (f) (lambda (x) (f x))))
+  (define two (lambda (f) (lambda (x) (f (f x)))))
+  (define (predTest num val)
+    (((pred num) testFunc) val)
+    )
+  
+  (inspect (predTest two 2))
+  )
+;(run5)
+; End problem 5
+
+; Problem 6
+(define (treeNode val left right)
+  (list val left right)
+  )
+
+(define (accumulate op base l)
+  (cond
+    ((null? l) base)
+    (else (op (car l) (accumulate op base (cdr l))))
+    )
+  )
+
+(define (treeflatten tree)
+
+  (define (addDepth tree depth)
+    (if (nil? tree)
+      nil
+      (list depth (car tree))
+      )
+    )
+
+  (define (rec current depth store)
+    (cond
+      ((nil? current)
+       store
+       )
+      (else
+        (append 
+          (rec (cadr current) (+ depth 1) (cons (addDepth current depth) store)) 
+          (rec (caddr current) (+ depth 1) nil))
+        )
+      )
+    )
+
+  (rec tree 0 ())
+  )
+
+(define (treedepth tree)
+  (define flatTree (treeflatten tree))
+  (define total (accumulate (lambda (node1 node2) (cons (+ (car node1) (car node2)) (+ 1 (cdr node2)))) (cons 0.0 0.0) flatTree))
+  (/ (car total) (cdr total))
+  )
+
+
+
+(define (run6)
+  
+  (inspect (treedepth (treeNode 1 (treeNode 6 nil nil) (treeNode 2 (treeNode 5 nil nil) (treeNode 3 nil (treeNode 4 nil nil))))))
+  (inspect (treedepth (treeNode 1 (treeNode 2 nil nil) (treeNode 3 nil nil))))
+  )
+(run6)        
+
+
+; Problem 9
+
+(include "table.scm")
+
+(define old+ +)
+(define old- -)
+(define old* *)
+(define old/ /)
+
+(define (getOld op)
+  (cond
+    ((eq? op '+) old+)
+    ((eq? op '-) old-)
+    ((eq? op '*) old*)
+    ((eq? op '/) old/)
+    )
+  )
+
+(define (apply-generic op a b)
+  (define (defined? func)
+    (not (eq? func nil))
+    )
+
+  (define (coerce var)
+    (if (eq? (type var) 'INTEGER)
+      (string var)
+      (integer var)
+      )
+    )
+
+
+  (define (getFunc x y)
+    (define func (getTable op (list (type x) (type y))))
+    (if (defined? func)
+      (lambda () (func x y))
+      nil
+      )
+    )
+
+  (define func (getFunc a b))
+  (cond 
+    ((defined? func) (func))
+    (else
+      (define coercedFunc (getFunc a (coerce b)))
+      (if (defined? coercedFunc)
+        (coercedFunc)
+        nil
+        )
+      )
+    )
+  )
+
+(define (addStrings a b)
+  (string+ a b)
+  )
+
+(define (addStringInteger a b)
+  (string+ a (string b))
+  )
+
+(define (subtractStringInteger a b)
+  (define (iter current remaining)
+    (if (= remaining 0)
+      current
+      (iter (cdr current) (- remaining 1))
+      )
+    )
+  (iter a b)
+  )
+
+(define (mulStringInteger a b)
+  (define (iter result remaining)
+    (if (= remaining 0)
+      result
+      (iter (string+ a result) (- remaining 1))
+      )
+    )
+  (iter "" b)
+  )
+
+(define (install-generic)
+  (clearTable)
+  (set! + (lambda (a b) (apply-generic '+ a b)))
+  (set! - (lambda (a b) (apply-generic '- a b)))
+  (set! * (lambda (a b) (apply-generic '* a b)))
+  (set! / (lambda (a b) (apply-generic '/ a b)))
+  (putTable '+ '(INTEGER INTEGER) old+)
+  (putTable '- '(INTEGER INTEGER) old-)
+  (putTable '* '(INTEGER INTEGER) old*)
+  (putTable '/ '(INTEGER INTEGER) old/)
+  (putTable '+ '(STRING STRING) addStrings)
+  (putTable '- '(STRING INTEGER) subtractStringInteger)
+  (putTable '* '(STRING INTEGER) mulStringInteger)
+  'generic-system-installed
+  )
+
+(define (uninstall-generic)
+  (set! + old+)
+  (set! - old-)
+  (set! * old*)
+  (set! / old/)
+  )
+
+(define (run9)
+  (install-generic)
+  (inspect (+ 1 1))
+  (inspect (+ "1" "1"))
+  (inspect (+ 123 "4"))
+  (inspect (- 123 "4"))
+  (inspect (- "abc" 2))
+  (inspect (* "abc" 3))
+  (inspect (* 3 "33"))
+  (inspect (/ 8 "2"))
+  (inspect (/ "8" 2))
+  (uninstall-generic)
+  (inspect (/ "8" 2))
+  )
+
+;(run9)
+
+; End problem 9
+
+; Problem 10 functions
+
+(define (install-coercion)
+  (clearTable)
+  (putTable 'coerce '(REAL) real)
+  (putTable 'coerce '(STRING) string)
+  (putTable 'coerce '(INTEGER) integer)
+  'coercion-installed
+  )
+
+(define (coerce val newType)
+  ((getTable 'coerce (list newType)) val)
+  )
+
+(define (run10)
+  (install-coercion)
+  (inspect (coerce 2 'REAL))
+  (inspect (coerce 2 'STRING))
+  (inspect (coerce 2.000 'INTEGER))
+  (inspect (coerce 2.000 'STRING))
+  (inspect (coerce "2" 'INTEGER))
+  (inspect (coerce "2" 'REAL))
+  ; Need clarification
+  (inspect (coerce (quote (1 (2 . 2) ((3 4) "5"))) 'STRING))
+  )
+;(run10)
