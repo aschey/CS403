@@ -319,15 +319,26 @@
       )
     )
 
+  (define (leaf? node)
+    (and (nil? (cadr node)) (nil? (caddr node)))
+    )
+
+  (define (recBranch func current depth storeOp)
+    (rec (func current) (+ depth 1) storeOp)
+    )
+
   (define (rec current depth store)
     (cond
-      ((nil? current)
-       store
+      ((nil? current) store)
+      ((leaf? current)
+       (append 
+         (recBranch cadr current depth (cons (addDepth current depth) store))
+         (recBranch caddr current depth nil))
        )
       (else
-        (append 
-          (rec (cadr current) (+ depth 1) (cons (addDepth current depth) store)) 
-          (rec (caddr current) (+ depth 1) nil))
+        (append
+          (recBranch cadr current depth store)
+          (recBranch caddr current depth store))
         )
       )
     )
@@ -336,9 +347,9 @@
   )
 
 (define (treedepth tree)
-  (define flatTree (treeflatten tree))
-  (define total (accumulate (lambda (node1 node2) (cons (+ (car node1) (car node2)) (+ 1 (cdr node2)))) (cons 0.0 0.0) flatTree))
-  (/ (car total) (cdr total))
+  (define flatTree (map (lambda (node) (cons (real (car node)) (cdr node))) (treeflatten tree)))
+  (define total (accumulate (lambda (node totalDepth) (+ (car node) totalDepth)) 0.0 flatTree))
+  (/ total (length flatTree))
   )
 
 
@@ -346,7 +357,7 @@
 (define (run6)
   
   (inspect (treedepth (treeNode 1 (treeNode 6 nil nil) (treeNode 2 (treeNode 5 nil nil) (treeNode 3 nil (treeNode 4 nil nil))))))
-  (inspect (treedepth (treeNode 1 (treeNode 2 nil nil) (treeNode 3 nil nil))))
+  (inspect (treedepth (treeNode 1 (treeNode 2 nil nil) (treeNode 3 (treeNode 4 nil nil) nil))))
   )
 (run6)        
 
