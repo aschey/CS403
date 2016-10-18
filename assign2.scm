@@ -214,7 +214,10 @@
        (else
          (define current (car remaining))
          (cond
-           ((eq? (car current) 'define) 
+           ((or (atom? current) (not (eq? (car current) 'define)))
+              (no-locals-iter (cdr remaining) sig current params)
+            )
+           (else
             (define varName (cadr current))
             (define defBody (caddr current))
             (if (any? sig defBody)
@@ -222,10 +225,7 @@
               (no-locals-iter (cdr remaining) (cons varName sig) body (cons defBody params))
               )
             )
-            (else
-              (no-locals-iter (cdr remaining) sig (append current body) params)
-              )
-            )
+           )
          )
        )
     )
@@ -234,12 +234,15 @@
   )
 
 (define (run4)
-  (inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (define y (+ x x)) (+ x y)))))
-  (inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (+ x x)))))
-  (inspect (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j)))))
+  ;(inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (define y (+ x x)) (+ x y)))))
+  ;(inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (+ x x)))))
+  (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j))
+  (inspect (nsq 5))
+  (inspect ((eval (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j)))) this) 5))
+  (inspect (no-locals '(define (f) (define x 3) (+ x 1))))
   )
 
-;(run4)
+(run4)
 
 ; End problem 4
 
@@ -457,7 +460,37 @@
   ;(inspect (safe? 8 (list (cons 1 4) (cons 2 3) (cons 5 2) (cons 1 1) (cons 6 0))))
   ;(inspect (safe? 8 '((1 . 4) (2 . 3) (5 . 2) (1 . 1) (6 . 0))))
   )
-(run7)
+;(run7)
+
+; End problem 7
+
+; Problem 8
+
+(define (cxr ops)
+  (define (addOp op rest)
+    (cons op (list rest))
+    )
+
+  (define body 
+    (accumulate 
+      (lambda (op rest)
+        (cond
+          ((equal? op "a") (addOp 'car rest))
+          ((equal? op "d") (addOp 'cdr rest))
+          )
+        )
+      'l
+      (string ops)
+      )
+    )
+    (eval (list 'lambda '(l) body) this)
+  )
+
+(define (run8)
+  (inspect ((cxr 'add) (list 1 2 3 4 5)))
+  )
+
+;(run8)
 
 ; Problem 9
 
@@ -574,7 +607,7 @@
   (inspect (/ 8 "2"))
   (inspect (/ "8" 2))
   (uninstall-generic)
-  (inspect (/ "8" 2))
+  ;(inspect (/ "8" 2))
   )
 
 ;(run9)

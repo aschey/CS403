@@ -1,0 +1,65 @@
+function evalVarDef(pt, env)
+    var init = eval(getInitializer(pt), env);
+    insert(env, getID(pt), init);
+    return init;
+
+function evalFuncDef(pt, env)
+    // insert should return value being inserted
+    return insert (env, getFuncionName(pt), cons(CLOSURE, env, pt));
+
+function evalBlock(pt, env)
+    var result = null;
+    while(pt != null)
+        result = eval(car(pt), env);
+        pt = cdr(pt);
+    return result;
+
+function evalPlus(pt, env)
+    var addend = eval(getAddend(pt), env);
+    var augend = eval(getAugent(pt), env);
+    if (augend.type == INT && addend.type == INT)
+        return new Lexeme (INT, augend.val + addend.val);
+    else if ...
+
+function evalWhile(pt, env)
+    var result = FalseLexeme;
+    while (isTrue(eval(getTest(pt), env)))
+        result = eval(getBody(pt), env);
+    return result;
+
+function evalCall(pt, env)
+    // have an expression that evaluates to give closure
+    // (f(x))(y)
+    var closure  = eval(getFuncExpr(pt), env);
+    // Call func that doesn't exist, return null
+    var params = getParams(closure);
+    // tag argument list
+    var args = getArgs(pt);
+    var eargs = eval(args, env);
+    // defining env
+    var denv = getEnv(closure);
+    // extended env
+    var xenv = extend(denv, params, eargs);
+    var result = eval(getBody(closure), xenv);
+    // objects are environments
+    return result; //xenv for objects
+
+function eval(pt, env)
+    ...
+    else if (pt.type == ID)
+        return lookup(env, pt);
+
+    else if (pt.type == VARDEF)
+        return evalVarDef(pt, env);
+
+    else if (pt.type == FUNCDEF)
+        return evalFuncDef(pt, env);
+
+    else if (pt.type == BLOCK)
+        return evalBlock(pt, env);
+
+    else if (pt.type == PLUS)
+        return evalPlus(pt, env);
+
+    else if (pt.type == WHILE)
+        return evalWhile(pt, env);
