@@ -347,9 +347,9 @@
   )
 
 (define (treedepth tree)
-  (define flatTree (map (lambda (node) (cons (real (car node)) (cdr node))) (treeflatten tree)))
-  (define total (accumulate (lambda (node totalDepth) (+ (car node) totalDepth)) 0.0 flatTree))
-  (/ total (length flatTree))
+  (define depths (map (lambda (node) (car node)) (treeflatten tree)))
+  (define total (accumulate + 0.0 depths))
+  (/ total (length depths))
   )
 
 
@@ -359,8 +359,105 @@
   (inspect (treedepth (treeNode 1 (treeNode 6 nil nil) (treeNode 2 (treeNode 5 nil nil) (treeNode 3 nil (treeNode 4 nil nil))))))
   (inspect (treedepth (treeNode 1 (treeNode 2 nil nil) (treeNode 3 (treeNode 4 nil nil) nil))))
   )
-(run6)        
+;(run6)
 
+; End problem 6
+
+; Problem 7
+
+(define (filter pred l)
+  (cond
+    ((nil? l) l)
+    ((eq? (pred (car l)) #t) (cons (car l) (filter pred (cdr l))))
+    (else (filter pred (cdr l)))
+    )
+  )
+
+(define (enumerateInterval low high)
+  (if (= low high)
+    nil
+    (cons low (enumerateInterval (+ low 1) high))
+    )
+  )
+
+(define (flatmap f l)
+  (accumulate append () (map f l))
+  )
+
+(define (adjoinPosition newCol k restOfQueens)
+  (cons (cons (- k 1) newCol) restOfQueens)
+  )
+
+(define (safe? k positions)
+  (define (difference func point1 point2)
+    (abs (- (func point1) (func point2)))
+    )
+
+  (define (diagonal? point1 point2)
+    (= (difference car point1 point2) (difference cdr point1 point2))
+    )
+
+  (define (canAttack? point1 point2)
+    (cond
+      ((eq? (cdr point1) (cdr point2)) #t)
+      ((diagonal? point1 point2) #t)
+      (else #f)
+      )
+    )
+
+  (define newQueen (car positions))
+  (define rest (cdr positions))
+
+  (define (iter otherQueens)
+    (cond
+      ((nil? otherQueens) #t)
+      ((canAttack? newQueen (car otherQueens)) #f)
+      (else (iter (cdr otherQueens)))
+      )
+    )
+  (iter rest)
+  )
+
+(define (queens boardSize)
+  (define (queenRows k)
+    (if (= k 0)
+      (list nil)
+     (filter
+        (lambda (positions) (safe? k positions))
+        (flatmap
+          (lambda (restOfQueens)
+            (map (lambda (newCol)
+                   (adjoinPosition newCol k restOfQueens))
+                 (enumerateInterval 0 boardSize)))
+          (queenRows (- k 1))
+          )
+        )
+      )
+   )
+  (queenRows boardSize)
+  )
+
+(define (run7)
+  (inspect (adjoinPosition 3 8 (list (cons 0 0) (cons 1 1))))
+  ;(inspect (map (lambda (newRow (adjoinPosition newRow 2 (list (cons 0 0) (cons 1 1)))) (enumerateInterval 0 8)))
+  ;(inspect 
+    (filter 
+      (lambda (positions) #t) 
+      (flatmap 
+        (lambda (restOfQueens) 
+          (map (lambda (newRow) 
+                 (adjoinPosition newRow 1 restOfQueens)) 
+               (enumerateInterval 0 8))) 
+        (list nil)
+        )
+      )
+  ;)
+  ;(filter (lambda (n) #t) (list (list (cons 0 0) (cons 1 1))))
+  (inspect (queens 4))
+  ;(inspect (safe? 8 (list (cons 1 4) (cons 2 3) (cons 5 2) (cons 1 1) (cons 6 0))))
+  ;(inspect (safe? 8 '((1 . 4) (2 . 3) (5 . 2) (1 . 1) (6 . 0))))
+  )
+(run7)
 
 ; Problem 9
 
