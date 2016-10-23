@@ -4,8 +4,11 @@
 
 ; Problem 1
 (define (iterate # $var vals $)
+  ; Create the function to evaluate the items in $
   (define f (append (list 'lambda (list $var)) $))
   (define func (eval f #))
+
+  ; Evaluate each one
   (define (iterList items)
     (cond 
       ((not (null? items))
@@ -34,6 +37,9 @@
     (define func (cons 'f (merge remaining params (list))))
     (eval func this)
     )
+
+  ; Merge the params that were passed in to peval with the ones that were passed in
+  ; when the resulting lambda was called
   (define (merge remaining params store)
     (cond
       ((= (length params) 0) store)
@@ -53,10 +59,13 @@
 )
 
 (define (run2)
-  (define (f a b c) (inspect a) (inspect b) (inspect c))
+  (define (f a b c) (inspect a) (inspect b) (inspect c) (+ a b c))
   (define . 'MISSING)
-  (inspect ((peval f 1 . 2) 1 2))
-  ;(inspect (peval f 1 2 .))
+  (inspect ((peval f . . .) 1 2 3))
+  (inspect ((peval f . 2 .) 1 3))
+  (inspect ((peval f 1 . .) 2 3))
+  (inspect ((peval f 1 . 3) 2))
+  (inspect ((peval f 1 2 3)))
   )
 ;(run2)
 
@@ -94,6 +103,11 @@
   (stack 'size)
   )
 
+; Implemented using two stacks
+; Inbox = stack values are enqueued on
+; Outbox = stack values are dequeued from
+; Values from the inbox are transferred to the outbox
+; if dequeue or qpeek is called
 (define (Queue) (_Queue (Stack) (Stack)))
   
 (define (_Queue inbox outbox) this)
@@ -110,6 +124,10 @@
   (_Queue (push (queue 'inbox) val) (queue 'outbox))
   )
 
+; Runs in O(length of inbox) if inbox is not empty
+; but overall amortized constant time because
+; this will only happen on the first time "dequeue" or "qpeek" is called
+; after an enqueue
 (define (makeOutbox in out)
   (cond 
     ((> (ssize in) 0)
@@ -165,9 +183,7 @@
   (define s5 (pop s4))
   (inspect (speek s5))
   (inspect (ssize s5))
-  )
 
-(define (run3test)
   (define q (Queue))
   (inspect (qsize q))
   (define q2 (enqueue q 1))
@@ -175,17 +191,19 @@
   (inspect (qsize q2))
   (define q3 (enqueue q2 2))
   (inspect (qsize q3))
+  (inspect (qpeek q3))
   (define q4 (dequeue q3))
   (inspect (qpeek q4))
   (inspect (qsize q4))
   (define q5 (enqueue q4 3))
   (inspect (qsize q5))
-  (define q6 (dequeue q4))
   (inspect (qpeek q5))
+  (define q6 (dequeue q4))
+  (inspect (qsize q6))
+  (inspect (qpeek q6))
  ) 
 
 ;(run3)
-;(run3test)
 
 ; End problem 3
 
@@ -206,7 +224,7 @@
       )
     )
 
-  (define (no-locals-iter remaining sig body params)
+  (define (buildBody remaining sig body params)
     (cond
       ((null? remaining)
        (construct sig body params)
@@ -214,32 +232,34 @@
        (else
          (define current (car remaining))
          (cond
+           ; Function body
            ((or (atom? current) (not (eq? (car current) 'define)))
-              (no-locals-iter (cdr remaining) sig current params)
+              (buildBody (cdr remaining) sig current params)
             )
            (else
+             ; Local define
             (define varName (cadr current))
             (define defBody (caddr current))
+            ; Create nested lambda if the current define refers to a previous one
             (if (any? sig defBody)
-              (construct sig (no-locals-iter (cdr remaining) (list varName) body (list defBody)) params) 
-              (no-locals-iter (cdr remaining) (cons varName sig) body (cons defBody params))
+              (construct sig (buildBody (cdr remaining) (list varName) body (list defBody)) params) 
+              (buildBody (cdr remaining) (cons varName sig) body (cons defBody params))
               )
             )
            )
          )
        )
     )
-   (define funcBody (no-locals-iter (cddr code) (list) (list) (list)))
+   (define funcBody (buildBody (cddr code) (list) (list) (list)))
    (list def signature funcBody)
   )
 
 (define (run4)
-  ;(inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (define y (+ x x)) (+ x y)))))
-  ;(inspect (no-locals (quote (define (nsq a) (define x (+ 1 1)) (+ x x)))))
   (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j))
   (inspect (nsq 5))
   (inspect ((eval (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j)))) this) 5))
   (inspect (no-locals '(define (f) (define x 3) (+ x 1))))
+  (inspect (no-locals '(define (f) (define x 3) 1)))
   )
 
 ;(run4)
@@ -253,7 +273,7 @@
   (define (makePair first)
     (lambda (second) 
       (lambda (firstOrSecond) 
-        (if (eq? firstOrSecond #t)
+        (if firstOrSecond
           first
           second
           )
@@ -281,7 +301,6 @@
           )
         )
       (define finalPair ((churchNum predNext) predFirst))
-      ;(inspect finalPair)
       (getSecond finalPair)
       )
     )
@@ -296,7 +315,7 @@
     (((pred num) testFunc) val)
     )
   
-  (inspect (predTest two 2))
+  (inspect (predTest two 1))
   )
 ;(run5)
 ; End problem 5
@@ -350,7 +369,9 @@
   )
 
 (define (treedepth tree)
+  ; Get rid of the leaf values and flatten the cons cells to integers
   (define depths (map (lambda (node) (car node)) (treeflatten tree)))
+  ; Add the depths together
   (define total (accumulate + 0.0 depths))
   (/ total (length depths))
   )
@@ -361,6 +382,7 @@
   
   (inspect (treedepth (treeNode 1 (treeNode 6 nil nil) (treeNode 2 (treeNode 5 nil nil) (treeNode 3 nil (treeNode 4 nil nil))))))
   (inspect (treedepth (treeNode 1 (treeNode 2 nil nil) (treeNode 3 (treeNode 4 nil nil) nil))))
+  (inspect (treedepth (treeNode 1 nil nil)))
   )
 ;(run6)
 
@@ -371,7 +393,7 @@
 (define (filter pred l)
   (cond
     ((nil? l) l)
-    ((eq? (pred (car l)) #t) (cons (car l) (filter pred (cdr l))))
+    ((pred (car l)) (cons (car l) (filter pred (cdr l))))
     (else (filter pred (cdr l)))
     )
   )
@@ -445,9 +467,7 @@
   )
 
 (define (run7)
-  (inspect (queens 6))
-  ;(inspect (safe? 8 (list (cons 1 4) (cons 2 3) (cons 5 2) (cons 1 1) (cons 6 0))))
-  ;(inspect (safe? 8 '((1 . 4) (2 . 3) (5 . 2) (1 . 1) (6 . 0))))
+  (inspect (queens 4))
   )
 ;(run7)
 
@@ -587,20 +607,23 @@
 
 (define (run9)
   (install-generic)
-  (inspect (+ 1 (list 1 2)))
   (inspect (+ "1" "1"))
   (inspect (+ 123 "4"))
   (inspect (- 123 "4"))
   (inspect (- "abc" 2))
+  (inspect (- "abc" 1))
+  (inspect (- "abc" 3))
   (inspect (* "abc" 3))
   (inspect (* 3 "33"))
   (inspect (/ 8 "2"))
-  (inspect (/ "8" 2))
+  ;(inspect (/ "8" 2))
+  ;(inspect (/ "8" "2"))
   (uninstall-generic)
   ;(inspect (/ "8" 2))
   )
 
-(run9)
+;(run9)
+  ;(filter (lambda (n) #t) (list (list (cons 0 0) (cons 1 1))))
 
 ; End problem 9
 
@@ -622,11 +645,12 @@
   (install-coercion)
   (inspect (coerce 2 'REAL))
   (inspect (coerce 2 'STRING))
+  (inspect (type (coerce 2 'STRING)))
   (inspect (coerce 2.000 'INTEGER))
   (inspect (coerce 2.000 'STRING))
+  (inspect (type (coerce 2.000 'STRING)))
   (inspect (coerce "2" 'INTEGER))
   (inspect (coerce "2" 'REAL))
-  ; Need clarification
   (inspect (coerce (quote (1 (2 . 2) ((3 4) "5"))) 'STRING))
   )
 ;(run10)
