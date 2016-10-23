@@ -505,9 +505,10 @@
     )
 
   (define (coerce var)
-    (if (eq? (type var) 'INTEGER)
-      (string var)
-      (integer var)
+    (cond
+      ((eq? (type var) 'INTEGER) (string var))
+      ((eq? (type var) 'STRING) (integer var))
+      (else var)
       )
     )
 
@@ -527,7 +528,7 @@
       (define coercedFunc (getFunc a (coerce b)))
       (if (defined? coercedFunc)
         (coercedFunc)
-        nil
+        ((getTable op (list 'INTEGER 'INTEGER)) a b)
         )
       )
     )
@@ -586,7 +587,7 @@
 
 (define (run9)
   (install-generic)
-  (inspect (+ 1 1))
+  (inspect (+ 1 (list 1 2)))
   (inspect (+ "1" "1"))
   (inspect (+ 123 "4"))
   (inspect (- 123 "4"))
@@ -599,7 +600,7 @@
   ;(inspect (/ "8" 2))
   )
 
-;(run9)
+(run9)
 
 ; End problem 9
 
