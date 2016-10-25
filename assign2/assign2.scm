@@ -623,7 +623,6 @@
   )
 
 ;(run9)
-  ;(filter (lambda (n) #t) (list (list (cons 0 0) (cons 1 1))))
 
 ; End problem 9
 

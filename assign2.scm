@@ -255,11 +255,13 @@
   )
 
 (define (run4)
-  (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j))
+  (define (nsq a) (define i (+ 1 1)) (define x (+ i 1)) (define y (+ i i)) (define j (+ 2 2)) (* y y x i j))
   (inspect (nsq 5))
-  (inspect ((eval (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ a 1)) (define y (+ x x)) (define j (+ 2 2)) (* y y x i j)))) this) 5))
-  (inspect (no-locals '(define (f) (define x 3) (+ x 1))))
-  (inspect (no-locals '(define (f) (define x 3) 1)))
+  (inspect ((eval (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ i 1)) (define y (+ i i)) (define j (+ 2 2)) (* y y x i j)))) this) 5))
+  (inspect (no-locals (quote (define (nsq a) (define i (+ 1 1)) (define x (+ i 1)) (define y (+ i i)) (define j (+ 2 2)) (* y y x i j)))))
+  ;(inspect (no-locals '(define (f) (define x 3) (+ x 1))))
+  ;(inspect (no-locals '(define (f) (define x 3) 1)))
+  ;(inspect (no-locals (quote (define (test a) (define x 1) (define y (+ x 1)) y))))
   )
 
 ;(run4)
@@ -268,55 +270,33 @@
 
 ; Problem 5
 
-(define (pred churchNum)
-
-  (define (makePair first)
-    (lambda (second) 
-      (lambda (firstOrSecond) 
-        (if firstOrSecond
-          first
-          second
-          )
+(define pred
+  (lambda (n)
+    (lambda (f)
+      (lambda (x)
+        (define a (lambda (g) (lambda (h) (h (g f)))))
+        (define b (lambda (u) x))
+        (define c (lambda (u) u)) 
+        (((n a) b) c)
         )
-      )
-    )
-
-  (define (getFirst pair)
-    (pair #t)
-    )
-
-  (define (getSecond pair)
-    (pair #f)
-    )
-
-  (lambda (next) 
-    (lambda (first)
-      (define predFirst ((makePair #t) first))
-      (define predNext 
-        (lambda (pair) 
-          (if (getFirst pair)
-            ((makePair #f) first)
-            ((makePair #f) (next (getSecond pair)))
-            )
-          )
-        )
-      (define finalPair ((churchNum predNext) predFirst))
-      (getSecond finalPair)
       )
     )
   )
+
 
 (define (run5)
   (define (testFunc x) (+ x 1))
   (define zero (lambda (f) (lambda (x) x)))
   (define one (lambda (f) (lambda (x) (f x))))
   (define two (lambda (f) (lambda (x) (f (f x)))))
+  (define three (lambda (f) (lambda (x) (f (f (f x))))))
   (define (predTest num val)
     (((pred num) testFunc) val)
     )
   
-  (inspect (predTest two 1))
+  (inspect (predTest three 2))
   )
+
 ;(run5)
 ; End problem 5
 
@@ -623,7 +603,6 @@
   )
 
 ;(run9)
-  ;(filter (lambda (n) #t) (list (list (cons 0 0) (cons 1 1))))
 
 ; End problem 9
 
