@@ -390,7 +390,7 @@
   )
 
 (define (adjoinPosition newCol k restOfQueens)
-  (cons (cons (- k 1) newCol) restOfQueens)
+  (cons (list (- k 1) newCol) restOfQueens)
   )
 
 (define (safe? k positions)
@@ -399,12 +399,12 @@
     )
 
   (define (diagonal? point1 point2)
-    (= (difference car point1 point2) (difference cdr point1 point2))
+    (= (difference car point1 point2) (difference cadr point1 point2))
     )
 
   (define (canAttack? point1 point2)
     (cond
-      ((eq? (cdr point1) (cdr point2)) #t)
+      ((eq? (cadr point1) (cadr point2)) #t)
       ((diagonal? point1 point2) #t)
       (else #f)
       )
