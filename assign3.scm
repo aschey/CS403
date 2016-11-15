@@ -13,51 +13,77 @@
     )
 
   (define params (get 'parameters func))
-  (define code (flatten (get 'code func)))
-  (inspect code)
+  (define code (get 'code func))
   (define (variable? atom)
     (and (not (string? atom)) (not (number? atom)))
     )
 
 
-  (define (addVar varsToReturn otherVars var)
-    (if (or (member? var varsToReturn) (member? var otherVars))
-      varsToReturn        
-      (cons var varsToReturn)
+  (define (addVar var varsToReturn otherVars)
+    (cond 
+      ((or (member? var varsToReturn) (member? var otherVars))
+       varsToReturn
+       )
+      (else
+       (cons var varsToReturn)
+       )
       )
     )
 
   (define (iter remaining nonLocalVars localVars)
-    (inspect localVars)
     (cond
-      ((null? remaining) nonLocalVars)
-      ((eq? (car remaining) 'define)
-       ; add "define" and the value it defines
-       (iter (cddr remaining) (addVar nonLocalVars localVars (car remaining)) (addVar localVars nonLocalVars (cadr remaining)))
-       )
-      ((eq? (car remaining) 'quote)
-       ; skip the quoted value
-       (iter (cddr remaining) (addVar nonLocalVars localVars (car remaining)) localVars)
+      ((null? remaining) 
+       nonLocalVars
        )
       (else
-        (if (variable? (car remaining))
-          (iter (cdr remaining) (addVar nonLocalVars localVars (car remaining)) localVars)
-          (iter (cdr remaining) nonLocalVars localVars)
+        (cond
+          ((pair? remaining)
+           (define current (car remaining))
+           (cond
+             ((and (pair? current) (eq? (car current) 'define))
+              (cond 
+                ((pair? (cadr current))
+                 (define params (cdr (cadr current)))
+                 (define code (cddr current))
+                 (iter (cdr remaining) (iter code nonLocalVars params) localVars)
+                 )
+                (else
+                  (iter (cdr remaining) nonLocalVars (addVar (cadr current) localVars nonLocalVars))
+                  )
+                )
+              )
+             ((eq? current 'quote)
+              (iter (cddr remaining) (addVar current nonLocalVars localVars) localVars)
+              )
+             (else
+               (iter (cdr remaining) (iter current nonLocalVars localVars) localVars)
+               )
+             )
+           )
+          (else
+            (cond
+              ((variable? remaining)
+               (addVar remaining nonLocalVars localVars)
+               )
+              (else
+                nonLocalVars
+                )
+              )
+            )
           )
         )
       )
     )
-
+          
   (iter code (list) params)
   )
 
 (define (run1)
   (define (test x a b)
     (define c 2)
-    (let
-      ((d 2)
-       (e 3)
-       )
+    (define (f g)
+      g
+      x
       )
     (cond
       ((not (null? b))
@@ -69,10 +95,13 @@
        )
       )
     )
+  (define (test2)
+    #t
+    )
   (inspect (nonlocals test))
   )
 
-;(run1)
+(run1)
 
 (define (run2)
   (define (fib n)
@@ -83,107 +112,28 @@
     )
   )
 
-(define (Stack) (_Stack (list) 0))
-
-(define (_Stack store size) this)
-
-(define (storeEmpty stack)
-  (= (length (stack 'store)) 0)
-  )
-
-(define (push stack val)
-  (_Stack (cons val (stack 'store)) (+ (stack 'size) 1))
-  )
-
-(define (pop stack)
-  (if (storeEmpty stack)
-    nil
-   (_Stack (cdr (stack 'store)) (- (stack 'size) 1))
-   )
-  )
-
-(define (speek stack)
-  (if (storeEmpty stack)
-    nil
-    (car (stack 'store))
-    )
-  )
-
-(define (ssize stack)
-  (stack 'size)
-  )
-
-; Implemented using two stacks
-; Inbox = stack values are enqueued on
-; Outbox = stack values are dequeued from
-; Values from the inbox are transferred to the outbox
-; if dequeue or qpeek is called
-(define (Queue) (_Queue (Stack) (Stack)))
-  
-(define (_Queue inbox outbox) this)
-
-(define (outboxEmpty queue)
-  (= (ssize (queue 'outbox)) 0)
-  )
-
-(define (inboxEmpty queue)
-  (= (ssize (queue 'inbox)) 0)
-  )
-
-(define (enqueue queue val)
-  (_Queue (push (queue 'inbox) val) (queue 'outbox))
-  )
-
-; Runs in O(length of inbox) if inbox is not empty
-; but overall amortized constant time because
-; this will only happen on the first time "dequeue" or "qpeek" is called
-; after an enqueue
-(define (makeOutbox in out)
-  (cond 
-    ((> (ssize in) 0)
-     (define nextVal (speek in))
-     (makeOutbox (pop in) (push out nextVal))
-     )
-    (else
-      (_Queue in out)
-      )
-    )
-  )
-
-(define (dequeue queue)
-  (cond 
-    ((outboxEmpty queue)
-     (if (inboxEmpty queue)
-       nil
-       (dequeue (makeOutbox (queue 'inbox) (queue 'outbox)))
-       )
-     )
-    (else (_Queue (queue 'inbox) (pop (queue 'outbox))))
-    )
-  )
-
-(define (qpeek queue)
-  (cond
-    ((outboxEmpty queue) 
-     (if (inboxEmpty queue)
-       nil
-       (qpeek (makeOutbox (queue 'inbox) (queue 'outbox)))
-       )
-     )
-    (else (speek (queue 'outbox)))
-    )
-  )
-
-(define (qsize queue)
-  (+ (ssize (queue 'inbox)) (ssize (queue 'outbox)))
-  )
-
 (define (avl)
   (define (avlNode val)
     (define left nil)
     (define right nil)
     (define height 0)
     (define parent nil)
+    this
+    )
+
+  (define (queue)
+    (define store (list))
+    (define (enqueue val)
+      (set! store (append store (list val)))
+      )
+    (define (dequeue)
+      (define val (car store))
+      (set! store (cdr store))
+      val
+      )
+    (define (size)
+      (length store)
+      )
     this
     )
 
@@ -460,21 +410,23 @@
     )
 
   (define (statistics)
-    (define queue (Queue))
-    (set! queue (enqueue queue root))
-    (while (> (qsize queue) 0)
-           (define current (qpeek queue))
-           (set! queue (dequeue queue))
-           ;(set! vals (append vals current))
+    (define q (queue))
+    ((q 'enqueue) root)
+    (while (> ((q 'size)) 0)
+           (define current ((q 'dequeue)))
            (print (current 'val))
            (print ":")
            (print (* -1 (balanceFactor current)))
            (print " ")
-           (if (not (eq? (current 'left) nil))
-             (set! queue (enqueue queue (current 'left)))
+           (cond 
+             ((not (eq? (current 'left) nil))
+              ((q 'enqueue) (current 'left))
+              )
              )
-           (if (not (eq? (current 'right) nil))
-             (set! queue (enqueue queue (current 'right)))
+           (cond
+             ((not (eq? (current 'right) nil))
+              ((q 'enqueue) (current 'right))
+              )
              )
            )
     (println)
@@ -494,4 +446,4 @@
   (inspect ((t 'find) 7))
   ;(inspect ((t 'size)))
   )
-(run3)
+;(run3)
