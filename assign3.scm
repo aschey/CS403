@@ -4,14 +4,6 @@
 
 
 (define (nonlocals func)
-  (define (flatten l)
-    (cond
-      ((null? l) l)
-      ((pair? (car l)) (append (flatten (car l)) (flatten (cdr l))))
-      ((atom? (car l)) (append (list (car l)) (flatten (cdr l))))
-      )
-    )
-
   (define params (get 'parameters func))
   (define code (get 'code func))
   (define (variable? atom)
@@ -101,7 +93,34 @@
   (inspect (nonlocals test))
   )
 
-(run1)
+;(run1)
+
+(define (replace func sym newSym)
+  (define code (get 'code func))
+  (define (iter remaining code)
+    (cond
+      ((builtin? remaining)
+       remaining
+       )
+      ((null? remaining)
+       code
+       )
+      ((pair? remaining)
+       (iter (cdr remaining) (append code (list (iter (car remaining) nil))))
+       )
+      ((eq? remaining sym)
+        newSym
+        )
+      (else
+        remaining
+        )
+      )
+    )
+  (define newCode (iter code (list)))
+  (set 'code newCode func)
+  func
+  )
+
 
 (define (run2)
   (define (fib n)
@@ -110,7 +129,12 @@
       (else (+ (fib (- n 1)) (fib (- n 2))))
       )
     )
+  ;(inspect (fib 26))
+  (define repFib (replace fib '- -))
+  (define dRepFib (replace repFib '+ +))
+  ;(inspect (dRepFib 26))
   )
+;(run2)
 
 (define (avl)
   (define (avlNode val)
@@ -447,3 +471,288 @@
   ;(inspect ((t 'size)))
   )
 ;(run3)
+(define (memq item x)
+  (cond ((null? x) #f)
+        ((eq? item (car x)) #t)
+        (else (memq item (cdr x)))))
+(define (percentError a b)
+  (abs (/ (- b a) a))
+  )
+
+(define (make-connector)
+  (define percentErrorMargin 0.00001)
+  (let ((value #f) (informant #f) (constraints (list)))
+    (define (set-my-value newval setter)
+      (cond ((not (has-value? me))
+             (set! value newval)
+             (set! informant setter)
+             (for-each-except setter
+                              inform-about-value
+                              constraints))
+            ((> (percentError value newval) percentErrorMargin)
+             (print "Contradiction")
+             (println (list value newval)))
+            (else 'ignored)))
+    (define (forget-my-value retractor)
+      (cond
+        ((eq? retractor informant)
+        (begin (set! informant #f)
+               (for-each-except retractor
+                                inform-about-no-value
+                                constraints)))
+        (else
+        'ignored)))
+    (define (connect new-constraint)
+      (if (not (memq new-constraint constraints))
+        (set! constraints
+          (cons new-constraint constraints)))
+      (if (has-value? me)
+        (inform-about-value new-constraint))
+      'done)
+    (define (me request)
+      (cond ((eq? request 'has-value?)
+             (if (not (eq? informant #f)) #t #f))
+            ((eq? request 'value) value)
+            ((eq? request 'set-value!) set-my-value)
+            ((eq? request 'forget) forget-my-value)
+            ((eq? request 'connect) connect)
+            (else (print "Unknown operation -- CONNECTOR"
+                           (println request)))))
+    me))
+(define (for-each-except exception procedure list)
+  (define (loop items)
+    (cond ((null? items) 'done)
+          ((eq? (car items) exception) (loop (cdr items)))
+          (else (procedure (car items))
+                (loop (cdr items)))))
+  (loop list))
+
+(define (multiplier m1 m2 product)
+  (define (process-new-value)
+    (cond ((or (and (has-value? m1) (= (get-value m1) 0))
+               (and (has-value? m2) (= (get-value m2) 0)))(set-value! product 0 me))
+          ((and (has-value? m1) (has-value? m2))
+           (set-value! product
+                       (* (get-value m1) (get-value m2))
+                       me))
+          ((and (has-value? product) (has-value? m1))
+           (set-value! m2
+                       (/ (get-value product) (get-value m1))
+                       me))
+          ((and (has-value? product) (has-value? m2))
+           (set-value! m1
+                       (/ (get-value product) (get-value m2))
+                       me))))
+  (define (process-forget-value)
+    (forget-value! product me)
+    (forget-value! m1 me)
+    (forget-value! m2 me)
+    (process-new-value))
+  (define (me request)
+    (cond ((eq? request 'I-have-a-value)
+           (process-new-value))
+          ((eq? request 'I-lost-my-value)
+           (process-forget-value))
+          (else
+            (print "Unknown request -- MULTIPLIER")
+            (println request))))
+  (connect m1 me)
+  (connect m2 me)
+  (connect product me)
+  me)
+(define (constant value connector)
+  (define (me request)
+    (print "Unknown request -- CONSTANT")
+    (println request))
+  (connect connector me)
+  (set-value! connector value me)
+  me)
+
+(define (squarer a b) 
+   (define (process-new-value) 
+     (if (has-value? b) 
+         (if (< (get-value b) 0) 
+             (error "square less than 0 -- SQUARER" (get-value b)) 
+             (set-value! a 
+                         (sqrt (get-value b)) 
+                         me)) 
+         (if (has-value? a) 
+             (set-value! b 
+                         (square (get-value a)) 
+                         me)))) 
+   (define (process-forget-value) 
+     (forget-value! a me) 
+     (forget-value! b me)) 
+   (define (me request) 
+     (cond ((eq? request 'I-have-a-value) 
+            (process-new-value)) 
+           ((eq? request 'I-lost-my-value) 
+            (process-forget-value)) 
+           (else 
+            (error "Unknown request -- SQUARER" request)))) 
+   (connect a me) 
+   (connect b me) 
+   me) 
+        
+
+(define (inform-about-value constraint)
+  (constraint 'I-have-a-value))
+(define (inform-about-no-value constraint)
+  (constraint 'I-lost-my-value))
+(define (has-value? connector)
+  (connector 'has-value?))
+(define (get-value connector)
+  (connector 'value))
+(define (set-value! connector new-value informant)
+  ((connector 'set-value!) new-value informant))
+(define (forget-value! connector retractor)
+  ((connector 'forget) retractor))
+(define (connect connector new-constraint)
+  ((connector 'connect) new-constraint))
+
+(define (gravity f m1 m2 r)
+  (define G 0.00667300)
+  (let ((w (make-connector))
+        (x (make-connector))
+        (y (make-connector))
+        (z (make-connector)))
+        
+    (constant G w)
+    (squarer r z)
+    (multiplier m1 m2 x)
+    (multiplier w x y)
+    (multiplier f z y)
+    (multiplier r r z)
+    'ok))
+
+(define (run4)
+  (define f (make-connector))
+  (define m1 (make-connector))
+  (define m2 (make-connector))
+  (define r (make-connector))
+  (gravity f m1 m2 r)
+  (set-value! m1 5 this)
+  (set-value! m2 10 this)
+  ;(set-value! r 2 this)
+  ;(forget-value! r this)
+  (set-value! f 1 this)
+  (inspect (get-value r))
+  )
+;(run4)
+
+(define (barrier)
+  (define numThreads 0)
+  (define threads (list))
+  (define (set newNumThreads)
+    (set! numThreads newNumThreads)
+    )
+
+  (define (install)
+    (lock)
+    )
+
+  (define (remove)
+    )
+
+  this
+  )
+
+(define (run5)
+  ;(define b (barrier))
+  ;((b 'set 1))
+  ;((b 'install))
+  ;(define t1 (thread (begin (lock) (println "Hello World 1") (unlock))))
+  ;(define t2 (thread (begin (lock) (println "Hello World 2") (unlock))))
+  ;(define t3 (thread (begin (lock) (println "Hello World 3") (unlock))))
+  (thread (println "a"))
+  )
+(run5)
+
+(define (stream-display s n)
+  (define (display-line x)
+    (newline)
+    (display x)
+    )
+  (define (stream-for-each proc s n)
+    (if (= n 1)
+      'done
+      (begin
+        (proc (stream-car s))
+        (stream-for-each proc (stream-cdr s) (- n 1))
+        )
+      )
+    )
+  (define (svdisplay s n)
+    (cond
+      ((= n 1)
+       (print (stream-car s))
+       )
+      ((> n 1)
+       (print (stream-car s) ",") 
+       (svdisplay (stream-cdr s) (- n 1))
+       )
+      (else
+        nil
+        )
+      )
+    )
+
+  (print "[")
+  ;(stream-for-each display s n)
+  (svdisplay s n)
+  (println "...]")
+  )
+
+(define (big-gulp)
+  (define (sop op s t)
+    (cons-stream (op (stream-car s) (stream-car t)) (sop op (stream-cdr s) (stream-cdr t)))
+    )
+  (define downCount 1)
+  (define maxDownCount 1)
+
+  (define upCount 0)
+  (define maxUpCount 1)
+
+  (define (nextDownCount)
+    (define curDownCount downCount)
+    (cond
+      ((= downCount 0)
+       (set! maxDownCount (+ maxDownCount 1))
+       (set! downCount maxDownCount)
+       )
+      (else
+        (set! downCount (- downCount 1))
+        )
+      )
+    curDownCount
+    )
+
+  (define (nextUpCount)
+    (define curUpCount upCount)
+    (cond
+      ((= upCount maxUpCount)
+       (set! maxUpCount (+ maxUpCount 1))
+       (set! upCount 0)
+       )
+      (else
+        (set! upCount (+ upCount 1))
+        )
+      )
+    curUpCount
+    )
+
+  (define (downCounter) (cons-stream (nextDownCount) (downCounter)))
+  (define (upCounter) (cons-stream (nextUpCount) (upCounter)))
+  (define bg (sop (lambda (x y) (* (^ 7 x) (^ 11 y))) (downCounter) (upCounter)))
+  bg
+  )
+
+(define (run6)
+  ;(inspect (stream-car (stream-cdr bgs)))
+  ;(stream-display big-gulp 4)
+  (define bg (big-gulp))
+  (stream-display bg 4)
+  (stream-display bg 4)
+  )
+
+;(run6)
