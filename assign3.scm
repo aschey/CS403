@@ -878,4 +878,73 @@
   )
 ;(run7)
 
+(define (sref s n)
+  (if (= n 0)
+    (stream-car s)
+    (sref (stream-cdr s) (- n 1))
+    )
+  )
+
+(define (eulerTransform s)
+  (define s0 (sref s 0))
+  (define s1 (sref s 1))
+  (define s2 (sref s 2))
+  (cons-stream
+    (- s2
+       (/ (^ (- s2 s1) 2.0) (+ s0 (* -2.0 s1) s2)))
+    (eulerTransform (stream-cdr s)))
+  )
+
+(define (tableau xf s)
+  (cons-stream s (tableau xf (xf s)))
+  )
+
+(define (mystery x)
+  (define (factorial n)
+    (cond
+      ((< n 2)
+       1
+       )
+      (else
+        (* n (factorial (- n 1)))
+        )
+      )
+    )
+
+  (define altOnes (cons-stream 1.0 (cons-stream -1.0 altOnes)))
+  (define twos (cons-stream 2.0 twos))
+  (define xs (cons-stream (real x) xs))
+  (define evens (cons-stream 0.0 (sop + twos evens)))
+  (define exps (sop (lambda (a b) (^ a b)) xs evens))
+  (define facts (smap factorial evens))
+  (define mys (sop * (sop / exps facts) altOnes))
+  mys
+  )
+
+(define (ps-mystery x)
+  (define mys (mystery x))
+  (sAccumulate mys 0)
+  )
+
+(define (acc-mystery x)
+  (define psMys (ps-mystery x))
+  (eulerTransform psMys)
+  )
+
+(define (super-mystery x)
+  (define psMys (ps-mystery x))
+  (smap stream-car (tableau eulerTransform psMys))
+  )
+
+(define (run8)
+  (define mys (mystery 4))
+  (define psMys (ps-mystery 4))
+  (define accMys (acc-mystery 4))
+  (define superMys (super-mystery 4))
+  ;(stream-display mys 18)
+  ;(stream-display psMys 10)
+  (stream-display accMys 15)
+  (stream-display superMys 6)
+  )
+;(run8) 
 
