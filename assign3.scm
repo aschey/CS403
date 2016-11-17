@@ -648,7 +648,20 @@
     )
 
   (define (install)
-    (lock)
+    (tjoin (thread 
+      (begin
+        (while #t
+               (println (gettid))
+               (define tid (gettid))
+               (cond 
+                 ((not (member? tid))
+                  (cons tid threads)
+                  (println tid)
+                  )
+                 )
+           )
+        )
+      ))
     )
 
   (define (remove)
@@ -657,16 +670,26 @@
   this
   )
 
-(define (run5)
-  ;(define b (barrier))
-  ;((b 'set 1))
-  ;((b 'install))
-  ;(define t1 (thread (begin (lock) (println "Hello World 1") (unlock))))
-  ;(define t2 (thread (begin (lock) (println "Hello World 2") (unlock))))
-  ;(define t3 (thread (begin (lock) (println "Hello World 3") (unlock))))
-  (thread (println "a"))
+(define (print1)
+  (while #t
+         (print "1")
+         (sleep 1)
+         (print "1")
+         )
   )
-(run5)
+
+(define (run5)
+  (define b (barrier))
+  ;((b 'set 1))
+  ((b 'install))
+  (define t1 (thread (begin (lock) (println "Hello World 1") (unlock))))
+  (define t2 (thread (begin (lock) (println "Hello World 2") (unlock))))
+  (define t3 (thread (begin (lock) (println "Hello World 3") (unlock))))
+  (tjoin t1)
+  (tjoin t2)
+  (tjoin t3)
+  )
+;(run5)
 
 (define (stream-display s n)
   (define (display-line x)
@@ -702,6 +725,15 @@
   (svdisplay s n)
   (println "...]")
   )
+
+(define (sop op s t)
+  (cons-stream (op (stream-car s) (stream-car t)) (sop op (stream-cdr s) (stream-cdr t)))
+  )
+
+(define (smap f s)
+  (cons-stream (f (stream-car s)) (smap f (stream-cdr s)))
+  )
+
 
 (define (big-gulp)
   (define (sop op s t)
@@ -756,3 +788,94 @@
   )
 
 ;(run6)
+
+(define (delay # $x)
+  (cons $x #)
+  )
+
+(define (force x)
+  (eval (car x) (cdr x))
+  )
+
+(define (signal f x dx)
+  (cons-stream (f x) (signal f (+ x dx) dx))
+  )
+
+(define (scale-stream s factor)
+  (smap (lambda (x) (* x factor)) s)
+  )
+
+(define (stream-cadr s)
+  (stream-car (stream-cdr s))
+  )
+
+;(define (sSkip s n)ddd
+;  (define (iter cur newS)
+;    (cond
+;      ((= cur n)
+;       (cons-stream (stream-car s) 
+;  (cons-stream (stream-car s) 
+
+(define (sBinaryMap f s)
+  (cons-stream (f (stream-car s) (stream-cadr s)) (sBinaryMap f (stream-cdr s)))
+  )
+(define (sAccumulate s prevVal)
+  (define nextVal (+ (stream-car s) prevVal))
+  (cons-stream nextVal (sAccumulate (stream-cdr s) nextVal))
+  )
+(define (min a b)
+  (if (< a b)
+    a
+    b
+    )
+  )
+(define (max a b)
+  (if (> a b)
+    a
+    b
+    )
+  )
+(define (trapezoid a b base)
+  (define maxVal (max a b))
+  (define minVal (min a b))
+  (define tHeight (- maxVal minVal))
+  (define result (+ (* .5 base tHeight) (* base minVal)))
+  result
+  )
+
+(define (inverseTrapezoid a b base)
+  (define maxVal (max a b))
+  (define minVal (min a b))
+  (+ (* 2 (* base (- maxVal minVal))) minVal)
+  )
+
+(define (integral s dx)
+  (sAccumulate 
+    (cons-stream 0 (sBinaryMap (lambda (a b) (trapezoid a b dx)) s)) 0)
+  )
+
+(define (differential start s dx)
+  (define (iter prevResult s)
+    (define result (inverseTrapezoid prevResult (- (stream-cadr s) (stream-car s)) dx))
+    (cons-stream result (iter result (stream-cdr s)))
+    )
+
+  (cons-stream start (iter start s))
+  )
+
+(define (run7)
+  (define (f x) (- (+ (^ x 2) (* 3 x)) 4))
+  (define dx 1)
+  (define printNum 10)
+  (define poly (signal f 0 dx))
+  (stream-display poly printNum)
+  (define intPoly (integral poly dx))
+  (stream-display intPoly printNum)
+  (define divIntPoly (differential (stream-car poly) intPoly dx))
+  (stream-display divIntPoly printNum)
+  (define difference (sop - divIntPoly poly))
+  (stream-display difference printNum)
+  )
+;(run7)
+
+
