@@ -10,7 +10,6 @@
     (and (not (string? atom)) (not (number? atom)))
     )
 
-
   (define (addVar var varsToReturn otherVars)
     (cond 
       ((or (member? var varsToReturn) (member? var otherVars))
@@ -21,6 +20,36 @@
        )
       )
     )
+
+  (define (addVars vars varsToReturn otherVars)
+    (define (iter remaining store)
+      (cond
+        ((null? remaining)
+         store
+         )
+        (else
+          (iter (cdr remaining) (addVar (car remaining) varsToReturn otherVars))
+          )
+        )
+      )
+    (iter vars (list))
+    )
+
+  (define (getLetVars vars)
+    (define (iter remaining locals)
+      (cond
+        ((null? remaining)
+         locals
+         )
+        (else
+          (define current (car remaining))
+          (iter (cdr remaining) (cons (car current) locals))
+          )
+        )
+      )
+    (iter vars (list))
+    )
+
 
   (define (iter remaining nonLocalVars localVars)
     (cond
@@ -43,6 +72,9 @@
                   (iter (cdr remaining) nonLocalVars (addVar (cadr current) localVars nonLocalVars))
                   )
                 )
+              )
+             ((and (pair? current) (eq? (car current) 'let))
+              (iter (cons (cddr current) (cdr remaining)) (addVar (car current) nonLocalVars localVars) (addVars (getLetVars (cadr current)) localVars nonLocalVars))
               )
              ((eq? current 'quote)
               (iter (cddr remaining) (addVar current nonLocalVars localVars) localVars)
@@ -72,6 +104,12 @@
 
 (define (run1)
   (define (test x a b)
+    (let
+      ((y 2)
+       (z 3))
+       (println y)
+       (println b)
+       )
     (define c 2)
     (define (f g)
       g
@@ -93,7 +131,7 @@
   (inspect (nonlocals test))
   )
 
-;(run1)
+(run1)
 
 (define (replace func sym newSym)
   (define code (get 'code func))
@@ -642,49 +680,75 @@
 
 (define (barrier)
   (define numThreads 0)
+  (define barrierFlag 1)
   (define threads (list))
   (define (set newNumThreads)
     (set! numThreads newNumThreads)
     )
 
-  (define (install)
-    (tjoin (thread 
-      (begin
-        (while #t
-               (println (gettid))
-               (define tid (gettid))
-               (cond 
-                 ((not (member? tid))
-                  (cons tid threads)
-                  (println tid)
-                  )
-                 )
-           )
-        )
-      ))
+  (define (remove)
+    (while (= barrierFlag 1))
+    (lock)
+    (set! barrierFlag 1)
+    (unlock)
     )
 
-  (define (remove)
+  (define (install)
+    (begin
+      (lock)
+      (cond
+        ((not (member? (gettid) threads))
+         (set! threads (cons (gettid) threads))
+         )
+        )
+
+      (cond
+        ((>= (length threads) numThreads)
+         (set! barrierFlag 0)
+         )
+        )
+      (unlock)
+      )
     )
 
   this
   )
 
-(define (print1)
-  (while #t
-         (print "1")
-         (sleep 1)
-         (print "1")
-         )
-  )
 
 (define (run5)
   (define b (barrier))
-  ;((b 'set 1))
-  ((b 'install))
-  (define t1 (thread (begin (lock) (println "Hello World 1") (unlock))))
-  (define t2 (thread (begin (lock) (println "Hello World 2") (unlock))))
-  (define t3 (thread (begin (lock) (println "Hello World 3") (unlock))))
+  ((b 'set) 3)
+  (define t1 
+    (thread
+      (begin
+        ((b 'install))
+        (println "a")
+        ((b 'remove))
+        (displayAtomic "a finished")
+        )
+      )
+    )
+  (define t2 
+    (thread
+      (begin
+        ((b 'install))
+        (println "b")
+        ((b 'remove))
+        (displayAtomic "b finished")
+        )
+      )
+    )
+  (sleep 3)
+  (define t3
+    (thread
+      (begin
+        ((b 'install))
+        (println "c")
+        ((b 'remove))
+        (println "c finished")
+        )
+      )
+    )
   (tjoin t1)
   (tjoin t2)
   (tjoin t3)
@@ -863,17 +927,19 @@
   (cons-stream start (iter start s))
   )
 
-(define (run7)
-  (define (f x) (- (+ (^ x 2) (* 3 x)) 4))
-  (define dx 1)
+
+(define (f x) (- (+ (^ x 2) (* 3 x)) 4))
+(define dx 1)
   (define printNum 10)
-  (define poly (signal f 0 dx))
+(define poly (signal f 0 dx))
+(define intPoly (integral poly dx))
+(define divIntPoly (differential (stream-car poly) intPoly dx))
+(define difference (sop - divIntPoly poly))
+(define (run7)
+  (define printNum 10)
   (stream-display poly printNum)
-  (define intPoly (integral poly dx))
   (stream-display intPoly printNum)
-  (define divIntPoly (differential (stream-car poly) intPoly dx))
   (stream-display divIntPoly printNum)
-  (define difference (sop - divIntPoly poly))
   (stream-display difference printNum)
   )
 ;(run7)
@@ -948,3 +1014,58 @@
   )
 ;(run8) 
 
+(define (merge-weighted s1 s2 weight)
+  (cond
+    ((null? s1) s2)
+    ((null? s2) s1)
+    (else
+      (define s1Current (stream-car s1))
+      (define s2Current (stream-car s2))
+      (cond
+        ((< (weight s1Current) (weight s2Current))
+         (cons-stream s1Current (merge-weighted (stream-cdr s1) s2 weight)))
+        ((> (weight s1Current) (weight s2Current))
+         (cons-stream s2Current (merge-weighted s1 (stream-cdr s2) weight)))
+        (else
+          (cons-stream s1Current (merge-weighted s2 (stream-cdr s1) weight)))
+        )
+      )
+    )
+  )
+(define (weighted-pairs s t weight)
+  (cons-stream
+    (list (stream-car s) (stream-car t))
+    (merge-weighted
+      (smap (lambda (x) (list (stream-car s) x))
+            (stream-cdr t))
+      (weighted-pairs (stream-cdr s) (stream-cdr t) weight)
+      weight))
+  )
+
+(define (ramanujan)
+  (define (sfilter f s)
+    (if (f (stream-car s))
+      (cons-stream (stream-car s) (sfilter f (stream-cdr s)))
+      (sfilter f (stream-cdr s))
+      )
+    )
+  (define (sBinaryFilter f s)
+    (if (f (stream-car s) (stream-cadr s))
+      (cons-stream (stream-car s) (sBinaryFilter f (stream-cdr s)))
+      (sBinaryFilter f (stream-cdr s))
+      )
+    )
+  (define (weightFunc x)
+    (+ (^ (car x) 3) (^ (cadr x) 3))
+    )
+  (define ones (cons-stream 1 ones))
+  (define wholes (cons-stream 1 (sop + ones wholes)))
+  (define pairs (weighted-pairs wholes wholes weightFunc))
+  (define rNums (smap weightFunc (sBinaryFilter (lambda (x y) (= (weightFunc x) (weightFunc y))) pairs)))
+  rNums
+  )
+(define (run9)
+  (define rNums (ramanujan))
+  (stream-display rNums 5)
+  )
+;(run9)
