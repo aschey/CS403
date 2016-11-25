@@ -131,7 +131,7 @@
   (inspect (nonlocals test))
   )
 
-(run1)
+;(run1)
 
 (define (replace func sym newSym)
   (define code (get 'code func))
@@ -144,7 +144,10 @@
        code
        )
       ((pair? remaining)
-       (iter (cdr remaining) (append code (list (iter (car remaining) nil))))
+       (if (or (eq? (car remaining) 'set) (eq? (car remaining) 'set!) (eq? (car remaining) 'define))
+         (iter (cddr remaining) (append (append code (list (iter (car remaining) nil))) (list (cadr remaining))))
+         (iter (cdr remaining) (append code (list (iter (car remaining) nil))))
+         )
        )
       ((eq? remaining sym)
         newSym
@@ -167,10 +170,10 @@
       (else (+ (fib (- n 1)) (fib (- n 2))))
       )
     )
-  ;(inspect (fib 26))
+  (inspect (fib 24))
   (define repFib (replace fib '- -))
   (define dRepFib (replace repFib '+ +))
-  ;(inspect (dRepFib 26))
+  (inspect (dRepFib 24))
   )
 ;(run2)
 
@@ -294,16 +297,12 @@
              (else
                (define fav (favorite node))
                (cond
-                 ((not (eq? fav nil))
-                  (cond
-                    ((and (not (isLinear node fav)) (not (isLinear parent node)))
-                     (rotate node fav)
-                     (rotate parent fav)
-                     (setBalance node)
-                     (setBalance parent)
-                     (setBalance fav)
-                     )
-                    )
+                 ((and (not (eq? fav nil)) (not (isLinear node fav)) (not (isLinear parent node)))
+                  (rotate node fav)
+                  (rotate parent fav)
+                  (setBalance node)
+                  (setBalance parent)
+                  (setBalance fav)
                   )
                  (else
                    (rotate parent node)
@@ -442,10 +441,6 @@
        (set 'parent parent child)
        )
       )
-
-    ;(if (not (eq? child nil))
-    ;  (set 'parent parent child)
-    ;  )
     )
 
   (define (setRightChild parent child)
@@ -455,9 +450,6 @@
        (set 'parent parent child)
        )
       )
-    ;(if (not (eq? child nil))
-    ;  (set 'parent parent child)
-    ;  )
     )
 
   (define (isLinear parent child)
@@ -499,14 +491,13 @@
 
 (define (run3)
   (define t (avl))
-  ((t 'insert) 3) 
+  ((t 'insert) 1)
+  ((t 'insert) 2)
+  ((t 'insert) 3)
   ((t 'insert) 4)
   ((t 'insert) 5)
-  ((t 'insert) 1)
-  ((t 'insert) 0)
   ((t 'statistics))
-  (inspect ((t 'find) 7))
-  ;(inspect ((t 'size)))
+  (inspect ((t 'find) 5))
   )
 ;(run3)
 (define (memq item x)
@@ -671,8 +662,6 @@
   (gravity f m1 m2 r)
   (set-value! m1 5 this)
   (set-value! m2 10 this)
-  ;(set-value! r 2 this)
-  ;(forget-value! r this)
   (set-value! f 1 this)
   (inspect (get-value r))
   )
@@ -785,7 +774,6 @@
     )
 
   (print "[")
-  ;(stream-for-each display s n)
   (svdisplay s n)
   (println "...]")
   )
@@ -844,8 +832,6 @@
   )
 
 (define (run6)
-  ;(inspect (stream-car (stream-cdr bgs)))
-  ;(stream-display big-gulp 4)
   (define bg (big-gulp))
   (stream-display bg 4)
   (stream-display bg 4)
@@ -872,13 +858,6 @@
 (define (stream-cadr s)
   (stream-car (stream-cdr s))
   )
-
-;(define (sSkip s n)ddd
-;  (define (iter cur newS)
-;    (cond
-;      ((= cur n)
-;       (cons-stream (stream-car s) 
-;  (cons-stream (stream-car s) 
 
 (define (sBinaryMap f s)
   (cons-stream (f (stream-car s) (stream-cadr s)) (sBinaryMap f (stream-cdr s)))
@@ -1007,8 +986,6 @@
   (define psMys (ps-mystery 4))
   (define accMys (acc-mystery 4))
   (define superMys (super-mystery 4))
-  ;(stream-display mys 18)
-  ;(stream-display psMys 10)
   (stream-display accMys 15)
   (stream-display superMys 6)
   )
